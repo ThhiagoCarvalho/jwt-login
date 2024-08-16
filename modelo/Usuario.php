@@ -1,278 +1,247 @@
 <?php
-require_once ("modelo/Banco.php");
-require_once ("modelo/Categoria.php");
+require_once("modelo/Banco.php");
 
-// Definição da classe Funcionario, que implementa a interface JsonSerializable
-class Usuario implements JsonSerializable
-{
-    // Propriedades privadas da classe
+
+class Usuario implements JsonSerializable {
     private $idUsuario;
-    private $nomeUsuario;
-    private $dataDate;
-    private $categoriaDate;
-    private $localizacaoDate;
-    private $categoria;
+    private $nomeUsuario;  
+    private $senhaUsuario;
+    private $emailUsuario;
 
-    // Construtor da classe
-    public function __construct()
-    {
-        $this->categoria = new Categoria();
-        $this->objJson = new stdClass();
-    }
+    private $tokenUsuario;
+    private $nascimento;
 
-    public function jsonSerialize()
-    {
-        // Cria um objeto stdClass para armazenar os dados do funcionário
-        $respostaPadrao = new stdClass();
-        $respostaPadrao->idUsuario = $this->idUsuario;
-        $respostaPadrao->nomeUsuario = $this->nomeUsuario;
-        $respostaPadrao->dataDate = $this->dataDate;
-        $respostaPadrao->categoriaDate = $this->categoriaDate;
-        $respostaPadrao->localizacaoDate = $this->localizacaoDate;
-
-        $respostaPadrao->idCategoria = $this->categoria->getIdCategoria();
-        return $respostaPadrao;
-    }
-
-    // Método para criar um novo funcionário no banco de dados
-    public function create()
-    {
-        $conexao = Banco::getConexao();
-        $SQL = "insert into Usuario (dataDate,categoria_Date,localizacaoDate,Categoria_idCategoria,nomeUsuario) values(?,?,?,?,?)";
-        $prepararSQL = $conexao->prepare($SQL);
-        $idCategoria = $this->categoria->getIdCategoria();
-        $prepararSQL->bind_param("sssis", $this->dataDate, $this->categoriaDate, $this->localizacaoDate, $idCategoria, $this->nomeUsuario);
-        $executar = $prepararSQL->execute();
-        // Obtém o ID do funcionário cadastrado
-
-        $idData = $conexao->insert_id;
-        $this->setIdUsuario($idData);
-        $prepararSQL->close();
-        return $executar;
-    }
-
-    // Método para criar um novo funcionário no banco de dados
-    public function createFromCSV()
-    {
-        $conexao = Banco::getConexao();
-        $SQL = "INSERT into Usuario 
-        (nomeUsuario, dataDate, categoriaDate, localizacaoDate,Categoria_idCategoria) 
-        VALUES(?,?,?,?,(SELECT idCategoria FROM categoria WHERE nomeCategoria = ? ))";
-        $prepararSQL = $conexao->prepare($SQL);
-        // Obtém o ID do cargo associado ao funcionário
-        $nomeCategoria = $this->categoria->getNomeCategoria();
-        // Define os parâmetros da consulta com os dados do funcionário e o ID do cargo
-        $prepararSQL->bind_param(
-            "sssss",
-            $this->nomeUsuario,
-            $this->dataDate,
-            $this->categoriaDate,
-            $this->localizacaoDate,
-            $this->$nomeCategoria
-        );
-
-        $executar = $prepararSQL->execute();
-        // Obtém o ID do funcionário cadastrado
-        $idData = $conexao->insert_id;
-        // Define o ID do funcionário na instância atual da classe
-        $this->setIdUsuario($idData);
-
-        $prepararSQL->close();
-        return $executar;
-    }
-    // Método para atualizar os dados de um funcionário no banco de dados
-    public function update()
-    {
-        $conexao = Banco::getConexao();
-        $SQL = "update Usuario set dataDate=?, categoria_Date=?,localizacaoDate=?, Categoria_idCategoria=?,nomeUsuario=?  where idUsuario=?";
-        $prepararSQL = $conexao->prepare($SQL);
-        $idCategoria = $this->getCategoria()->getIdCategoria();
-        $prepararSQL->bind_param("sssisi", $this->dataDate, $this->categoriaDate, $this->localizacaoDate, $idCategoria, $this->nomeUsuario, $this->idUsuario);
-
-        $executar = $prepararSQL->execute();
-        $prepararSQL->close();
-        return $executar;
-    }
-
-    public function delete()
-    {
-        $conexao = Banco::getConexao();
-        $SQL = "delete from Usuario where idUsuario = ?";
-
-        $prepararSQL = $conexao->prepare($SQL);
-        $prepararSQL->bind_param("i", $this->idUsuario);
-        $executou = $prepararSQL->execute();
-        $prepararSQL->close();
-        return $executou;
-    }
-
-    // Método para obter os dados de um funcionário pelo ID
-    public function readById()
-    {
-        $conexao = Banco::getConexao();
-        $SQL = "SELECT * FROM usuario JOIN categoria ON usuario.Categoria_idCategoria= categoria.idCategoria WHERE idUsuario=?; ";
-
-        $prepararSQL = $conexao->prepare($SQL);
-        $prepararSQL->bind_param("i", $this->idUsuario);
-        $executou = $prepararSQL->execute();
-        $matrizTuplas = $prepararSQL->get_result();
-        // Inicializa um contador
-        $i = 0;
-
-        $usuario[0] = new Usuario();
-
-        while ($tupla = $matrizTuplas->fetch_object()) {
-            // Define os dados do funcionário na instância atual da classe
-            $usuario[0]->setIdUsuario($tupla->idUsuario);
-            $usuario[0]->setNomeUsuario($tupla->nomeUsuario);
-            $usuario[0]->setDataDate($tupla->dataDate);
-            $usuario[0]->setCategoriaDate($tupla->categoria_Date);
-            $usuario[0]->setLocalizacaoDate($tupla->localizacaoDate);
-
-            $categoria = new Categoria();
-            $categoria->setIdCategoria($tupla->idCategoria);
-            $categoria->setNomeCategoria($tupla->nomeCategoria);
-
-            // Define o cargo do funcionário
-            $usuario[0]->setCategoria($categoria);
-        }
-        // Retorna o array contendo os funcionários encontrados
-        return $usuario;
-    }
-    public function isData()
-    {
-        $conexao = Banco::getConexao();
-        $SQL = "SELECT COUNT(*) AS qtd FROM usuario WHERE dataDate =?;";
-        $prepareSQL = $conexao->prepare($SQL);
-        $prepareSQL->bind_param("s", $this->dataDate);
-        $executou = $prepareSQL->execute();
-
-        $matrizTuplas = $prepareSQL->get_result();
-        $objTupla = $matrizTuplas->fetch_object();
-        // Retorna se a quantidade de cargos encontrados é maior que zero
-        return $objTupla->qtd > 0;
+    public function jsonSerialize() {
+        $obj = new stdClass();
+        $obj->idUsuario= $this->getIdUsuario();
+        $obj->nomeUsuario = $this->getNomeUsuario();
+        $obj->senhaUsuario = $this->getsenha();
+        $obj->emailUsuario = $this->getEmail();
+        return $obj;
 
     }
 
-    // Método para obter todos os funcionários
-    public function readAll()
-    {
-        $conexao = Banco::getConexao();
-        $SQL = "SELECT * FROM usuario JOIN categoria ON usuario.Categoria_idCategoria = categoria.idCategoria  order by nomeUsuario";
 
-        $prepararSQL = $conexao->prepare($SQL);
-        $executou = $prepararSQL->execute();
-        // Obtém o resultado da consulta
-        $matrizTuplas = $prepararSQL->get_result();
-        $i = 0;
-        $usuarios = array();
-        // Itera sobre as tuplas retornadas
+public function verficarUsuarioSenha () {
+    $conexao = Banco::getConexao();
+    $sql =  "SELECT count(*) AS qtd, emailUsuario, senhaUsuario FROM app_user WHERE emailUsuario = ? AND senhaUsuario = md5(?)  GROUP BY emailusuario, senhaUsuario";
 
-        while ($tupla = $matrizTuplas->fetch_object()) {
-            // Cria um novo objeto da classe Funcionario e define seus dados
-            $usuarios[$i] = new Usuario();
-            $usuarios[$i]->setIdUsuario($tupla->idUsuario);
-            $usuarios[$i]->setNomeUsuario($tupla->nomeUsuario);
-            $usuarios[$i]->setDataDate($tupla->dataDate);
-            $usuarios[$i]->setCategoriaDate($tupla->categoria_Date);
-            $usuarios[$i]->setLocalizacaoDate($tupla->localizacaoDate);
+    $prepararsql = $conexao->prepare($sql);
+    $prepararsql->bind_param("ss", $this->emailUsuario, $this->senhaUsuario);
+    $prepararsql ->execute();
+    $matriz = $prepararsql -> get_result();
+    $objTupla = $matriz -> fetch_object();
+    return $objTupla->qtd > 0;  
+}
 
-            // Cria um novo objeto da classe Cargo e define seus dados
-            $categoria = new Categoria();
-            $categoria->setIdCategoria($tupla->idCategoria);
-            $categoria->setNomeCategoria($tupla->nomeCategoria);
+public function verificarEmail () {
+    $conexao = Banco::getConexao();
 
-            // Define o cargo do funcionário
-            $usuarios[$i]->setCategoria($categoria);
-            $i++;
-        }
-        return $usuarios;
+    $sql =  "SELECT count(*) AS qtd, emailUsuario FROM app_user WHERE emailUsuario = ?   GROUP BY emailusuario";
+
+    $prepararsql = $conexao->prepare($sql);
+    $prepararsql->bind_param("s", $this->emailUsuario);
+    $prepararsql ->execute();
+    $matriz = $prepararsql -> get_result();
+    $objTupla = $matriz -> fetch_object();
+    return $objTupla->qtd > 0;  
+}
+
+public function create (){
+    $conexao = Banco::getConexao() ;
+    $this->senhaUsuario = md5($this->senhaUsuario);
+
+    $sql = "insert into app_user (nomeUsuario,emailUsuario,senhaUsuario) values (?,?,?)";
+    
+   
+    $prepararsql = $conexao->prepare($sql);
+    if (!$prepararsql) {
+        throw new Exception("Erro ao preparar a consulta SQL");
     }
-    public function getIdCategoria()
-    {
-        return $this->idUsuario;
+    $prepararsql->bind_param("sss",$this->nomeUsuario,$this->emailUsuario,$this->senhaUsuario);
+    $executou = $prepararsql->execute();
+    if (!$executou) {
+        throw new Exception("Erro ao executar a consulta SQL");
     }
+    $idCadastrado = $conexao->insert_id;
+    $this->setIdUsuario($idCadastrado);
+    return $executou;    
+}
 
-    public function setIdCategoria($idCategoria)
-    {
-        $this->idCategoria = $idCategoria;
-        return $this;
-    }
 
-    public function getIdUsuario()
-    {
-        return $this->idUsuario;
-    }
+public function createFromCsv (){
+    $conexao = Banco::getConexao() ;
+    $this->senhaUsuario = md5($this->nascimento);
 
-    public function setIdUsuario($idUsuario)
-    {
-        $this->idUsuario = $idUsuario;
-        return $this;
+    $sql = "insert into usuario (nomeUsuario,emailUsuario,senhaUsuario) values (?,?,?)";
+    $prepararsql = $conexao->prepare($sql);
+    if (!$prepararsql) {
+        throw new Exception("Erro ao preparar a consulta SQL");
     }
+    $prepararsql->bind_param("sss",$this->nomeUsuario,$this->emailUsuario,$this->senhaUsuario);
+    $executou = $prepararsql->execute();
+    if (!$executou) {
+        throw new Exception("Erro ao executar a consulta SQL");
+    }
+    $idCadastrado = $conexao->insert_id;
+    $this->setIdUsuario($idCadastrado);
+    return $executou;    
+}
 
-    // Método getter para nomeFuncionario
-    public function getNomeUsuario()
-    {
-        return $this->nomeUsuario;
+public function IsUsuario (){
+    $conexao = Banco::getConexao() ;
+    $sql = "select count(*) as qtd from usuario where emailUsuario = ?";
+    $prepararsql = $conexao->prepare($sql);
+    if (!$prepararsql) {
+        throw new Exception("Erro ao preparar a consulta SQL");
     }
+    $prepararsql->bind_param("s",$this->emailUsuario);
+    $executou = $prepararsql->execute();
+    if (!$executou) {
+        throw new Exception("Erro ao executar a consulta SQL");
+    }
+    $matriz = $prepararsql->get_result();
+    $objTupla  = $matriz->fetch_object();
+    return $objTupla->qtd > 0;
+}
 
-    // Método setter para nomeFuncionario
-    public function setNomeUsuario($nomeUsuario)
-    {
-        $this->nomeUsuario = $nomeUsuario;
-        return $this;
-    }
 
-    // Método getter para email
-    public function getDataDate()
-    {
-        return $this->dataDate;
+public function delete (){
+    $conexao = Banco::getConexao() ;
+    $sql = "delete from app_user where idUsuario = ?";
+    $prepararsql = $conexao->prepare($sql);
+    if (!$prepararsql) {
+        throw new Exception("Erro ao preparar a consulta SQL");
     }
+    $prepararsql->bind_param("i",$this->idUsuario);
+    return $prepararsql->execute();    
 
-    // Método setter para email
-    public function setDataDate($dataDate)
-    {
-        $this->dataDate = $dataDate;
-        return $this;
-    }
+}
 
-    // Método getter para senha
-    public function getCategoriaDate()
-    {
-        return $this->categoriaDate;
-    }
 
-    // Método setter para senha
-    public function setCategoriaDate($categoria_Date)
-    {
-        $this->categoriaDate = $categoria_Date;
-        return $this;
-    }
+public function update (){
+    $conexao = Banco::getConexao() ;
+    $this->senhaUsuario = md5($this->senhaUsuario);
 
-    // Método getter para recebeValeTransporte
-    public function getLocalizacaoDate()
-    {
-        return $this->localizacaoDate;
+    $sql = "update app_user set nomeUsuario=?,emailUsuario=?,senhaUsuario=? where idUsuario = ?";
+    $prepararsql = $conexao->prepare($sql);
+    if (!$prepararsql) {
+        throw new Exception("Erro ao preparar a consulta SQL");
     }
+    $prepararsql->bind_param("sssi",$this->nomeUsuario,$this->emailUsuario,$this->senhaUsuario,$this->idUsuario);
+    return  $prepararsql->execute();
+}
 
-    // Método setter para recebeValeTransporte
-    public function setLocalizacaoDate($localizacaoDate)
-    {
-        $this->localizacaoDate = $localizacaoDate;
-        return $this;
-    }
+public function updateSenha (){
+    $conexao = Banco::getConexao() ;
+    $this->senhaUsuario = md5($this->senhaUsuario);
 
-    // Método getter para cargo
-    public function getCategoria()
-    {
-        return $this->categoria;
+    $sql = "update app_user set senhaUsuario = md5(?)  where emailUsuario = ?";
+    $prepararsql = $conexao->prepare($sql);
+    if (!$prepararsql) {
+        throw new Exception("Erro ao preparar a consulta SQL");
     }
+    $prepararsql->bind_param("ss",$this->senhaUsuario,$this->emailUsuario);
+    return  $prepararsql->execute();
+}
+public function ReadById (){
+    $conexao = Banco::getConexao() ;
+    $sql = "select * from app_user where idUsuario = ?";
+    $prepararsql = $conexao->prepare($sql);
+    if (!$prepararsql) {
+        throw new Exception("Erro ao preparar a consulta SQL");
+    }
+    $prepararsql->bind_param("i", $this->idUsuario);
+    $prepararsql->execute();
+    if (!$prepararsql->execute()) {
+        throw new Exception("Erro ao executar a consulta SQL");
+    }
+    $matrizTuplas = $prepararsql->get_result();
+    $matrizTuplas = $matrizTuplas ->fetch_all(MYSQLI_ASSOC);
+    return $matrizTuplas;
 
-    // Método setter para cargo
-    public function setCategoria($categoria)
-    {
-        $this->categoria = $categoria;
-        return $this;
+}
+
+public function ReadByPage ($pagina){
+    $conexao = Banco::getConexao() ;
+    $itensPorPagina = 5;
+    $inicio = ($pagina - 1) * $itensPorPagina;
+    $sql = "select * from app_user limit ?,?";
+    $prepararsql = $conexao->prepare($sql);
+    if (!$prepararsql) {
+        throw new Exception("Erro ao preparar a consulta SQL");
     }
+    $prepararsql->bind_param("ii",$inicio,$itensPorPagina);
+    $executou = $prepararsql->execute();
+    if (!$executou) {
+        throw new Exception("Erro ao executar a consulta SQL");
+    }
+    $matriz = $prepararsql->get_result();
+    $matriz = $matriz->fetch_all(MYSQLI_ASSOC);
+    return $matriz;
+}
+
+
+
+public function getTokenUsuario ( $token ){
+    return $this->tokenUsuario;
+}
+public function setTokenUsuario( $token ){
+    $this->tokenUsuario = $token;
+}
+
+public function setIdUsuario($idUsuario) {
+    $this->idUsuario = $idUsuario;
+}
+public function getIdUsuario() {
+    return $this->idUsuario;
+}
+
+public function setNomeUsuario($nome) {
+
+    $this->nomeUsuario = $nome;
+}
+public function getNomeUsuario() {
+    return $this->nomeUsuario;
+}
+public function setSenha($senha) {
+    $this->senhaUsuario = $senha;
+}
+public function getSenha() {
+    return $this->senhaUsuario;
+}
+public function setEmail($email) {
+    $this->emailUsuario = $email;
+}
+public function getEmail() {
+    return $this->emailUsuario;
+}
+public function setNascimento($nascimento) {
+    $this->nascimento = $nascimento;
+}
+public function getNascimento() {
+    return $this->nascimento;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 ?>
