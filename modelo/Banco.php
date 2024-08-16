@@ -2,7 +2,7 @@
     class Banco{
         private static $HOST='127.0.0.1';
         private static $USER= 'root';
-        private static $PWD= '14031965Paulo';
+        private static $PWD= 'root123';
         private static $DB= 'mydb';
         private static $PORT= 3306;
         private static $CONEXAO= null;
